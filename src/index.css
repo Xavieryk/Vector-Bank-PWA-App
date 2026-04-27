@@ -1,0 +1,68 @@
+:root {
+  font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  line-height: 1.35;
+  font-weight: 400;
+  color: #dee3ea;
+  background: #071724;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --bg: #071724;
+  --panel: #1e2b34;
+  --accent: #abff1a;
+  --text: #dee3ea;
+  --danger: #ff2024;
+  --muted: rgba(222, 227, 234, 0.45);
+  --nav-muted: rgba(222, 227, 234, 0.68);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-height: 100svh;
+  margin: 0;
+  background:
+    radial-gradient(circle at bottom, rgba(30, 43, 52, 0.7), transparent 42%),
+    var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+img,
+svg {
+  display: block;
+}
+
+.asset-icon {
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+}
+
+#root {
+  min-height: 100svh;
+}
