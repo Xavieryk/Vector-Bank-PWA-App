@@ -91,6 +91,8 @@ type BankCard = {
   brand: string
 }
 
+type BalanceVisibilityMap = Record<string, boolean>
+
 type DestinationBank = {
   id: string
   name: string
@@ -266,9 +268,9 @@ function App() {
     'bank.selectedDestinationBankId',
     destinationBanks[0].id,
   )
-  const [isBalanceVisible, setIsBalanceVisible] = usePersistedState(
-    'bank.isBalanceVisible',
-    true,
+  const [balanceVisibility, setBalanceVisibility] = usePersistedState<BalanceVisibilityMap>(
+    'bank.balanceVisibility',
+    {},
   )
   const [homeWidgets, setHomeWidgets] = usePersistedState<HomeWidgetSetting[]>(
     'bank.homeWidgets',
@@ -308,6 +310,13 @@ function App() {
     sourceBankCards.find((card) => card.id === selectedSourceCardId) ?? sourceBankCards[0]
   const selectedDestinationBank =
     destinationBanks.find((bank) => bank.id === selectedDestinationBankId) ?? destinationBanks[0]
+  const isCardBalanceVisible = (cardId: string) => balanceVisibility[cardId] ?? true
+  const toggleCardBalance = (cardId: string) => {
+    setBalanceVisibility((current) => ({
+      ...current,
+      [cardId]: !(current[cardId] ?? true),
+    }))
+  }
 
   useEffect(() => {
     if (screen !== 'otp' || otpTimer <= 0) {
@@ -715,7 +724,7 @@ function App() {
   }
 
   const otpReady = otpDigits.every(Boolean)
-  const showBottomNav = !['amount', 'sourceCards', 'profile', 'settings', 'expenses'].includes(screen)
+  const showBottomNav = !['amount', 'sourceCards', 'cardDetails', 'profile', 'settings', 'expenses'].includes(screen)
 
   return (
     <div className="app-shell">
@@ -728,7 +737,7 @@ function App() {
               activeCardIndex={activeCardIndex}
               cards={displayBankCards}
               widgets={normalizedHomeWidgets}
-              isBalanceVisible={isBalanceVisible}
+              getBalanceVisible={isCardBalanceVisible}
               operations={operations}
               onCardSwitch={switchCard}
               onOpenCardDetails={() => setScreen('cardDetails')}
@@ -802,8 +811,8 @@ function App() {
           {screen === 'cardDetails' && (
             <CardDetailsScreen
               card={displayBankCards[activeCardIndex] ?? displayBankCards[0]}
-              isBalanceVisible={isBalanceVisible}
-              onToggleBalance={() => setIsBalanceVisible((visible) => !visible)}
+              isBalanceVisible={isCardBalanceVisible((displayBankCards[activeCardIndex] ?? displayBankCards[0]).id)}
+              onToggleBalance={() => toggleCardBalance((displayBankCards[activeCardIndex] ?? displayBankCards[0]).id)}
             />
           )}
 
@@ -1200,7 +1209,7 @@ function HomeScreen({
   activeCardIndex,
   cards,
   widgets,
-  isBalanceVisible,
+  getBalanceVisible,
   operations,
   onCardSwitch,
   onOpenCardDetails,
@@ -1212,7 +1221,7 @@ function HomeScreen({
   activeCardIndex: number
   cards: BankCard[]
   widgets: HomeWidgetSetting[]
-  isBalanceVisible: boolean
+  getBalanceVisible: (cardId: string) => boolean
   operations: Operation[]
   onCardSwitch: (direction: 1 | -1) => void
   onOpenCardDetails: () => void
@@ -1251,6 +1260,7 @@ function HomeScreen({
 
   const renderCard = (card: BankCard, className = '', ariaHidden = false) => {
     const hiddenPreviewNumber = card.number.replace(/\d/g, '•')
+    const isBalanceVisible = getBalanceVisible(card.id)
 
     return (
       <article className={`main-card main-card-${card.id} ${className}`} aria-hidden={ariaHidden}>
@@ -1927,6 +1937,105 @@ function SourceCardsScreen({
         ))}
       </div>
     </section>
+  )
+}
+
+function CardDetailsScreen({
+  card,
+  isBalanceVisible,
+  onToggleBalance,
+}: {
+  card: BankCard
+  isBalanceVisible: boolean
+  onToggleBalance: () => void
+}) {
+  const hiddenBalance = '•••••• ₽'
+  const hiddenNumber = card.number.replace(/\d/g, '•')
+  const isSavings = card.id === 'savings'
+
+  return (
+    <section className="screen-content card-details-content">
+      <article className={`card-detail-hero card-detail-hero-${card.id}`}>
+        <div className="card-detail-top">
+          <span className="card-chip" />
+          <b>{card.brand}</b>
+        </div>
+
+        <h1>{card.title}</h1>
+        <p>{card.type}</p>
+        <strong>{isBalanceVisible ? card.number : hiddenNumber}</strong>
+
+        <div className="card-detail-balance">
+          <span>{isBalanceVisible ? card.balance : hiddenBalance}</span>
+          <button
+            type="button"
+            onClick={onToggleBalance}
+            aria-label={isBalanceVisible ? 'Скрыть баланс карты' : 'Показать баланс карты'}
+          >
+            {isBalanceVisible ? <EyeIcon /> : <EyeOffIcon />}
+          </button>
+        </div>
+      </article>
+
+      <section className="card-limit-panel">
+        <div>
+          <span>{isSavings ? 'Доля общего баланса' : 'Лимит расходов'}</span>
+          <b>{isSavings ? '100%' : '48 350 ₽ / 75 000 ₽'}</b>
+        </div>
+        <div className="card-limit-track">
+          <span style={{ width: isSavings ? '100%' : '64%' }} />
+        </div>
+      </section>
+
+      <section className="card-detail-actions">
+        <CardDetailAction
+          icon={<LockIcon />}
+          title="PIN-код"
+          subtitle="Изменить PIN-код карты"
+        />
+        <CardDetailAction
+          icon={<SnowflakeIcon />}
+          title="Заморозить карту"
+          subtitle="Можно быстро разморозить"
+        />
+        <CardDetailAction
+          icon={<GaugeIcon />}
+          title="Изменить лимит"
+          subtitle="Текущий лимит 75 000 ₽"
+        />
+        <CardDetailAction
+          icon={<StatementIcon />}
+          title="Выписка"
+          subtitle="Отправить на email"
+        />
+        <CardDetailAction
+          icon={<SettingsIcon />}
+          title="Настройки"
+          subtitle="Безопасность и уведомления"
+        />
+      </section>
+    </section>
+  )
+}
+
+function CardDetailAction({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: ReactNode
+  title: string
+  subtitle: string
+}) {
+  return (
+    <button className="card-detail-action" type="button">
+      <span>{icon}</span>
+      <div>
+        <b>{title}</b>
+        <p>{subtitle}</p>
+      </div>
+      <ChevronRightIcon />
+    </button>
   )
 }
 
@@ -3073,6 +3182,27 @@ function SettingsIcon() {
       <path d="m19.4 13.5.1-1.5-.1-1.5 2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A8 8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5-.1 1.5.1 1.5-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8 8 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.5Z" />
     </Svg>
   )
+}
+
+function LockIcon() {
+  return <Svg><path d="M7 10V7a5 5 0 0 1 10 0v3" /><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M12 14v3" /></Svg>
+}
+
+function SnowflakeIcon() {
+  return (
+    <Svg>
+      <path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9" />
+      <path d="m9 4.8 3 3 3-3M9 19.2l3-3 3 3M5.8 10.2l4.1-1.1-1.1-4.1M18.2 13.8l-4.1 1.1 1.1 4.1M18.2 10.2l-4.1-1.1 1.1-4.1M5.8 13.8l4.1 1.1-1.1 4.1" />
+    </Svg>
+  )
+}
+
+function GaugeIcon() {
+  return <Svg><path d="M4 14a8 8 0 1 1 16 0" /><path d="M12 14l4-4" /><path d="M8 20h8" /></Svg>
+}
+
+function StatementIcon() {
+  return <Svg><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v5h5M10 12h6M10 16h6" /></Svg>
 }
 
 function LogoutIcon() {
