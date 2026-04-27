@@ -1,0 +1,36 @@
+Проектирование главного экрана мобильного банковского приложения - тема моего диплома. Приложение буду делать минимально работающий прототип, который можно запустить на телефоне PWA на React.
+
+вот план диплома: 
+1. Изучить конкурентов, всех. Все РФ банки, топовые зарубеж банки 
+Провести бенчмаркинг и ред/гриндотс чтобы проанализировать конкурентов 
+
+2. Изучить проблемы пользователей. Нейронки, исследования и аналитика из открытых источников 
+
+Надо ответить на главные вопросы - зачем люди пользуются банкингом, какие у них сценарии, какие боли.
+
+Нам надо очень хорошо изучить пользователей, чтобы понять как они обращаются с финансами. Понять, какие у них Дейли сценарии, какие более редкие. 
+
+Для этого предлагаю провести Глубинки. Почитай статьи в инете, как составить идеальный гайд/ сценарий к интервью. 
+Если будут вопросы — пиши 
+
+4. Собрать все выводы в кучу, и на этом этапе концептуально понять что будет в банкинге. 
+Тут можно ограничиться прототипами. 
+
+5. Продумать концепцию: визуальный стиль. Протестировать ее на пользователях 
+
+6. Отрисовать макеты и корнер кейсы в финальной концепции 
+
+7. Протестировать на пользователях макеты, с помощью юзер тестирований (если будет время) или через pathway (возможно там нужна подписка, позже разберемся) 
+
+8. Проработать юай-кит, собрать кейс
+
+важно подсветить в проблемы, что банки под санкциями, а на айфон нельзя скачать приложение
+
+То есть сейчас тренд на вебвью
+
+вот ссылки на которые можешь опираться в первую очередь если они связаны с моим запросом: [Markswebb_UX_Problems _Guide_Statreport.pdf](https://www.markswebb.ru/upload/iblock/uploads/uxpg/Markswebb_UX_Problems%20_Guide_Statreport.pdf?utm_source=telegram&utm_medium=messenger&utm_content=uxpg_start&utm_campaign=markswebb)
+[5страница_Problems _Guide_Checklists.pdf](https://www.markswebb.ru/upload/iblock/uploads/uxpg/Markswebb_UX_Problems%20_Guide_Checklists.pdf?utm_source=telegram&utm_medium=messenger&utm_content=uxpg_start&utm_campaign=markswebb)
+[201-209.ru/upload/iblock/uploads/uxpg/Markswebb_UX_Problems _Guide_Fullreport.pdf?utm_medium=email&utm_source=Unisender](https://www.markswebb.ru/upload/iblock/uploads/uxpg/Markswebb_UX_Problems%20_Guide_Fullreport.pdf?utm_medium=email&utm_source=Unisender)
+[https://www.figma.com/design/wIl813uQYD9mYqft08iKOi/%D0%B1%D0%B0%D0%BD%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5?node-id=52-359&t=TFmhqWOxivbpc0da-1](https://www.figma.com/design/wIl813uQYD9mYqft08iKOi/%D0%B1%D0%B0%D0%BD%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5?node-id=52-359&t=TFmhqWOxivbpc0da-1)
+
+пока вот так, ничего не нужно делать я просто тебе брифинг даю
