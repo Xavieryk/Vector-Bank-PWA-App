@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
   type Dispatch,
+  type KeyboardEvent,
   type ReactNode,
   type SetStateAction,
 } from 'react'
@@ -18,6 +19,7 @@ type ScreenId =
   | 'contacts'
   | 'amount'
   | 'sourceCards'
+  | 'cardDetails'
   | 'review'
   | 'otp'
   | 'processing'
@@ -421,6 +423,11 @@ function App() {
       setScreen('amount')
       return
     }
+    if (screen === 'cardDetails') {
+      setScreen('home')
+      setActiveTab('home')
+      return
+    }
     if (screen === 'review') {
       setScreen('amount')
       return
@@ -487,6 +494,13 @@ function App() {
     })
     setShowTemplateSheet(false)
     showToast('Шаблон добавлен в избранное')
+  }
+
+  const removeFavoriteTemplate = (templateId: string) => {
+    setFavoriteTemplates((current) =>
+      normalizeFavoriteTemplates(current).filter((template) => template.id !== templateId),
+    )
+    showToast('Шаблон удалён')
   }
 
   const submitAmount = () => {
@@ -706,7 +720,6 @@ function App() {
   return (
     <div className="app-shell">
       <PhoneFrame>
-        <StatusBar />
         {screen !== 'home' && <BackButton onClick={goBack} />}
 
         <main className={`screen-body screen-${screen}`}>
@@ -718,7 +731,7 @@ function App() {
               isBalanceVisible={isBalanceVisible}
               operations={operations}
               onCardSwitch={switchCard}
-              onToggleBalance={() => setIsBalanceVisible((visible) => !visible)}
+              onOpenCardDetails={() => setScreen('cardDetails')}
               onProfile={() => setScreen('profile')}
               onTransfer={() => openTab('transfers')}
               onAllExpenses={() => setScreen('expenses')}
@@ -783,6 +796,14 @@ function App() {
                 setShowInsufficientFunds(false)
                 setScreen('amount')
               }}
+            />
+          )}
+
+          {screen === 'cardDetails' && (
+            <CardDetailsScreen
+              card={displayBankCards[activeCardIndex] ?? displayBankCards[0]}
+              isBalanceVisible={isBalanceVisible}
+              onToggleBalance={() => setIsBalanceVisible((visible) => !visible)}
             />
           )}
 
@@ -874,6 +895,7 @@ function App() {
             <FavoriteTemplatesScreen
               templates={normalizedFavoriteTemplates}
               contacts={contactsList}
+              onTemplateDelete={removeFavoriteTemplate}
               onTemplateSelect={(template) => {
                 if (template.kind === 'operation' && template.operation) {
                   repeatTransferFromOperation(template.operation)
@@ -1166,19 +1188,6 @@ function PhoneFrame({ children }: { children: ReactNode }) {
   return <div className="phone-frame">{children}</div>
 }
 
-function StatusBar() {
-  return (
-    <div className="status-bar" aria-hidden="true">
-      <span>9:09</span>
-      <div className="status-icons">
-        <span className="signal" />
-        <span className="wifi" />
-        <span className="battery" />
-      </div>
-    </div>
-  )
-}
-
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button className="back-button" type="button" onClick={onClick} aria-label="Назад">
@@ -1194,7 +1203,7 @@ function HomeScreen({
   isBalanceVisible,
   operations,
   onCardSwitch,
-  onToggleBalance,
+  onOpenCardDetails,
   onProfile,
   onTransfer,
   onAllExpenses,
@@ -1206,29 +1215,73 @@ function HomeScreen({
   isBalanceVisible: boolean
   operations: Operation[]
   onCardSwitch: (direction: 1 | -1) => void
-  onToggleBalance: () => void
+  onOpenCardDetails: () => void
   onProfile: () => void
   onTransfer: () => void
   onAllExpenses: () => void
   onOperationSelect: (operation: Operation) => void
 }) {
+  const [dragOffset, setDragOffset] = useState(0)
+  const [isDraggingCard, setIsDraggingCard] = useState(false)
+  const dragStartY = useRef<number | null>(null)
+  const didSwipeCard = useRef(false)
   const activeCard = cards[activeCardIndex] ?? cards[0]
+  const previousCard = cards[(activeCardIndex - 1 + cards.length) % cards.length]
+  const nextCard = cards[(activeCardIndex + 1) % cards.length]
   const hiddenBalance = '•••••• ₽'
-  const hiddenNumber = activeCard.number.replace(/\d/g, '•')
   const visibleWidgets = widgets.filter((widget) => widget.visible)
+  const hasMultipleCards = cards.length > 1
+
+  const resetCardDrag = () => {
+    dragStartY.current = null
+    setIsDraggingCard(false)
+    setDragOffset(0)
+  }
+
+  const finishCardDrag = () => {
+    const wasSwipe = Math.abs(dragOffset) > 48
+    didSwipeCard.current = wasSwipe
+
+    if (wasSwipe && hasMultipleCards) {
+      onCardSwitch(dragOffset < 0 ? 1 : -1)
+    }
+
+    resetCardDrag()
+  }
+
+  const renderCard = (card: BankCard, className = '', ariaHidden = false) => {
+    const hiddenPreviewNumber = card.number.replace(/\d/g, '•')
+
+    return (
+      <article className={`main-card main-card-${card.id} ${className}`} aria-hidden={ariaHidden}>
+        <h2>{card.title}</h2>
+        <div>
+          <p>{card.type}</p>
+          <strong>{isBalanceVisible ? card.number : hiddenPreviewNumber}</strong>
+          <b>
+            {isBalanceVisible ? card.balance : hiddenBalance}
+          </b>
+        </div>
+        <span>{card.brand}</span>
+      </article>
+    )
+  }
 
   return (
     <section className="screen-content home-content">
       <header className="home-header">
         <button className="home-user home-user-button" type="button" onClick={onProfile}>
-          <span className="avatar avatar-xl" />
+          <span className="avatar avatar-xl">
+            <img
+              alt=""
+              aria-hidden="true"
+              src={`${ASSET_BASE}${encodeURIComponent('Заглушка на аватарку контакта.svg')}`}
+            />
+          </span>
           <div>
             <p>Доброе утро,</p>
             <h1>Имя Фамилия</h1>
           </div>
-          <span className="home-profile-cue" aria-hidden="true">
-            <ChevronRightIcon />
-          </span>
         </button>
         <button className="notification" type="button" aria-label="Уведомления">
           <BellIcon />
@@ -1236,70 +1289,43 @@ function HomeScreen({
       </header>
 
       <section
-        className="card-stack"
+        className={`card-stack ${isDraggingCard ? 'dragging' : ''}`}
+        style={{ '--card-drag': `${dragOffset}px` } as CSSProperties}
         onWheel={(event) => {
           if (Math.abs(event.deltaY) > 12) {
             onCardSwitch(event.deltaY > 0 ? 1 : -1)
           }
         }}
-        onTouchStart={(event) => {
-          event.currentTarget.dataset.touchStartY = String(event.touches[0].clientY)
+        onPointerDown={(event) => {
+          dragStartY.current = event.clientY
+          setIsDraggingCard(true)
+          event.currentTarget.setPointerCapture(event.pointerId)
         }}
-        onTouchEnd={(event) => {
-          const startY = Number(event.currentTarget.dataset.touchStartY)
-          const endY = event.changedTouches[0].clientY
-          const diff = startY - endY
-          if (Math.abs(diff) > 34) {
-            onCardSwitch(diff > 0 ? 1 : -1)
+        onPointerMove={(event) => {
+          if (dragStartY.current === null) {
+            return
           }
+
+          const nextOffset = Math.max(-82, Math.min(82, event.clientY - dragStartY.current))
+          if (Math.abs(nextOffset) > 10) {
+            didSwipeCard.current = true
+          }
+          setDragOffset(nextOffset)
+        }}
+        onPointerUp={finishCardDrag}
+        onPointerCancel={resetCardDrag}
+        onClick={() => {
+          if (didSwipeCard.current) {
+            didSwipeCard.current = false
+            return
+          }
+
+          onOpenCardDetails()
         }}
       >
-        <button
-          className="card-switch card-switch-up"
-          type="button"
-          onClick={() => onCardSwitch(-1)}
-          aria-label="Предыдущая карта"
-        >
-          <ChevronDownIcon />
-        </button>
-        <article className={`main-card main-card-${activeCard.id}`}>
-          <h2>{activeCard.title}</h2>
-          <div>
-            <p>{activeCard.type}</p>
-            <strong>{isBalanceVisible ? activeCard.number : hiddenNumber}</strong>
-            <b>
-              {isBalanceVisible ? activeCard.balance : hiddenBalance}
-              <button
-                className="eye-button"
-                type="button"
-                onClick={onToggleBalance}
-                aria-label={isBalanceVisible ? 'Скрыть баланс' : 'Показать баланс'}
-              >
-                {isBalanceVisible ? <EyeIcon /> : <EyeOffIcon />}
-              </button>
-            </b>
-          </div>
-          <span>{activeCard.brand}</span>
-        </article>
-        {cards.map((card, index) => (
-          <button
-            key={card.id}
-            className={`card-dot ${index === activeCardIndex ? 'active' : ''}`}
-            type="button"
-            onClick={() => onCardSwitch(index > activeCardIndex ? 1 : -1)}
-            aria-label={`Перейти к карте ${index + 1}`}
-          />
-        ))}
-        <button
-          className="card-switch card-switch-down"
-          type="button"
-          onClick={() => onCardSwitch(1)}
-          aria-label="Следующая карта"
-        >
-          <ChevronDownIcon />
-        </button>
-        <span className="stack-layer layer-one" />
-        <span className="stack-layer layer-two" />
+        {hasMultipleCards && renderCard(previousCard, 'card-preview card-preview-prev', true)}
+        {renderCard(activeCard, 'main-card-active')}
+        {hasMultipleCards && renderCard(nextCard, 'card-preview card-preview-next', true)}
       </section>
 
       {visibleWidgets.length === 0 && (
@@ -1436,11 +1462,52 @@ function FavoriteTemplatesScreen({
   templates,
   contacts,
   onTemplateSelect,
+  onTemplateDelete,
 }: {
   templates: FavoriteTemplate[]
   contacts: Contact[]
   onTemplateSelect: (template: FavoriteTemplate) => void
+  onTemplateDelete: (templateId: string) => void
 }) {
+  const [holdingTemplateId, setHoldingTemplateId] = useState<string | null>(null)
+  const deleteTimer = useRef<number | null>(null)
+  const didDeleteByHold = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimer.current) {
+        window.clearTimeout(deleteTimer.current)
+      }
+    }
+  }, [])
+
+  const startDeleteHold = (template: FavoriteTemplate) => {
+    if (template.kind === 'beeline') {
+      return
+    }
+
+    setHoldingTemplateId(template.id)
+    if (deleteTimer.current) {
+      window.clearTimeout(deleteTimer.current)
+    }
+
+    deleteTimer.current = window.setTimeout(() => {
+      didDeleteByHold.current = true
+      onTemplateDelete(template.id)
+      setHoldingTemplateId(null)
+      deleteTimer.current = null
+    }, 2500)
+  }
+
+  const cancelDeleteHold = () => {
+    if (deleteTimer.current) {
+      window.clearTimeout(deleteTimer.current)
+      deleteTimer.current = null
+    }
+
+    setHoldingTemplateId(null)
+  }
+
   return (
     <section className="screen-content favorite-templates-content with-page-title">
       <h1>Избранное</h1>
@@ -1456,10 +1523,26 @@ function FavoriteTemplatesScreen({
       <div className="favorite-templates-list">
         {templates.map((template) => (
           <button
-            className="favorite-template-row"
+            className={`favorite-template-row ${holdingTemplateId === template.id ? 'holding-delete' : ''}`}
             key={template.id}
             type="button"
-            onClick={() => onTemplateSelect(template)}
+            onClick={() => {
+              if (didDeleteByHold.current) {
+                didDeleteByHold.current = false
+                return
+              }
+
+              onTemplateSelect(template)
+            }}
+            onPointerDown={() => startDeleteHold(template)}
+            onPointerUp={cancelDeleteHold}
+            onPointerLeave={cancelDeleteHold}
+            onPointerCancel={cancelDeleteHold}
+            aria-label={
+              template.kind === 'operation'
+                ? `${template.title}. Удерживайте 2.5 секунды, чтобы удалить`
+                : template.title
+            }
             disabled={template.kind === 'beeline' && contacts.length === 0}
           >
             <span className={`favorite-template-icon template-${template.kind}`}>
@@ -1987,6 +2070,23 @@ function OtpScreen({
   onContinue: () => void
   onResend: () => void
 }) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+
+  const handleDigitChange = (index: number, value: string) => {
+    const nextValue = value.replace(/\D/g, '').slice(-1)
+    onDigitChange(index, nextValue)
+
+    if (nextValue && index < digits.length - 1) {
+      window.requestAnimationFrame(() => inputRefs.current[index + 1]?.focus())
+    }
+  }
+
+  const handleDigitKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Backspace' && !digits[index] && index > 0) {
+      window.requestAnimationFrame(() => inputRefs.current[index - 1]?.focus())
+    }
+  }
+
   return (
     <section className="screen-content otp-content">
       <div className="otp-center">
@@ -1997,10 +2097,18 @@ function OtpScreen({
           {digits.map((digit, index) => (
             <input
               key={index}
+              ref={(node) => {
+                inputRefs.current[index] = node
+              }}
               value={digit}
               maxLength={1}
+              type="tel"
               inputMode="numeric"
-              onChange={(event) => onDigitChange(index, event.target.value)}
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
+              enterKeyHint={index === digits.length - 1 ? 'done' : 'next'}
+              onChange={(event) => handleDigitChange(index, event.target.value)}
+              onKeyDown={(event) => handleDigitKeyDown(index, event)}
+              onFocus={(event) => event.currentTarget.select()}
               aria-label={`Цифра ${index + 1}`}
             />
           ))}
@@ -2744,8 +2852,8 @@ function SettingsScreen({
 function Toast({ message }: { message: string }) {
   return (
     <div className="toast" role="status" aria-live="polite">
-      <span>✓</span>
-      {message}
+      <span aria-hidden="true">✓</span>
+      <strong>{message}</strong>
     </div>
   )
 }
@@ -2851,7 +2959,7 @@ function BellIcon() {
 }
 
 function EyeIcon() {
-  return <AssetIcon file="скрыть баланс.svg" />
+  return <AssetIcon file="скрыть баланс.svg" className="eye-icon-img" />
 }
 
 function EyeOffIcon() {
